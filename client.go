@@ -2,7 +2,6 @@ package bitbucket_v1
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -12,62 +11,53 @@ import (
 )
 
 const (
-	DEFAULT_PAGE_LENGHT = 10
-	DEC_RADIX           = 10
+	defaultPageLenght = 10
+	decRadix          = 10
 )
 
-var (
-	apiBaseURL           = "https://bitbucket.org/api/1.0"
-	ErrNotPagedResponse  = errors.New("Is not a paged response")
-	ErrNoFieldInResponse = errors.New("The field does not exist in the response")
-	ErrBadResponse       = errors.New("Response is malformed")
+const (
+	defaultApiBaseURL = "https://bitbucket.org/api/1.0"
 )
 
-func GetApiBaseURL() string {
-	return apiBaseURL
-}
-
-func SetApiBaseURL(urlStr string) {
-	apiBaseURL = urlStr
-}
-
-type Client struct {
-	Auth       *auth
-	PageLenght uint64
-}
-
-type auth struct {
+type Auth struct {
 	user, password string
 }
 
-func NewClient(user, password string) *Client {
-	return &Client{
-		PageLenght: DEFAULT_PAGE_LENGHT,
-		Auth: &auth{
-			user:     user,
-			password: password,
-		}}
+func NewSimpleAuth(user, password string) Auth {
+	return Auth{
+		user,
+		password,
+	}
 }
 
-func (client *Client) execute(method, urlStr, text string) (interface{}, error) {
+type Client struct {
+	BaseUrl    *url.URL
+	Auth       *Auth
+	PageLenght uint64
+}
 
-	var result interface{}
-	resBodyBytes, err := client.executeString(method, urlStr, text)
+func NewClient(urlString string, auth *Auth) (*Client, error) {
+	var client = Client{
+		Auth:       auth,
+		PageLenght: defaultPageLenght,
+	}
+	var err error
+
+	if urlString == "" {
+		urlString = defaultApiBaseURL
+	}
+	client.BaseUrl, err = url.Parse(urlString)
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(resBodyBytes, &result)
-	if err != nil {
-		return nil, err
-	}
+	client.Auth = auth
 
-	return result, nil
-
+	return &client, nil
 }
 
-func (client *Client) executeString(method, urlStr, text string) ([]byte, error) {
+func (client *Client) execute(method, urlString, text string) ([]byte, error) {
 	body := strings.NewReader(text)
-	req, err := http.NewRequest(method, urlStr, body)
+	req, err := http.NewRequest(method, client.BaseUrl.String()+urlString, body)
 
 	if err != nil {
 		return nil, err
@@ -102,7 +92,7 @@ func (client *Client) executeString(method, urlStr, text string) ([]byte, error)
 type PagedResponse struct {
 	Size          int               `json:"size"`
 	Limit         int               `json:"limit"`
-	IsLastPage    bool              `json:"isLatPage"`
+	IsLastPage    bool              `json:"isLastPage"`
 	Values        []json.RawMessage `json:"values"`
 	Start         int               `json:"start"`
 	NextPageStart int               `json:"nextPageStart"`
@@ -130,13 +120,13 @@ func (client *Client) getPaged(urlString string, ammount int, text string) ([]js
 			return nil, err
 		}
 		q := urlObject.Query()
-		q.Set("limit", strconv.FormatUint(limit, DEC_RADIX))
-		q.Set("start", strconv.FormatInt(int64(resp.NextPageStart), DEC_RADIX))
+		q.Set("limit", strconv.FormatUint(limit, decRadix))
+		q.Set("start", strconv.FormatInt(int64(resp.NextPageStart), decRadix))
 		urlObject.RawQuery = q.Encode()
 		urlString = urlObject.String()
 
 		// Perform the GET
-		stream, err := client.executeString("GET", urlString, text)
+		stream, err := client.execute("GET", urlString, text)
 		if err != nil {
 			return values, err
 		}
@@ -155,12 +145,4 @@ func (client *Client) getPaged(urlString string, ammount int, text string) ([]js
 	}
 
 	return values, nil
-}
-
-func (c *Client) requestUrl(template string, args ...interface{}) string {
-
-	if len(args) == 1 && args[0] == "" {
-		return GetApiBaseURL() + template
-	}
-	return GetApiBaseURL() + fmt.Sprintf(template, args...)
 }
