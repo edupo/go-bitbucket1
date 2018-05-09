@@ -146,3 +146,97 @@ func (client *Client) getPaged(urlString string, ammount int, text string) ([]js
 
 	return values, nil
 }
+
+func (client *Client) GetProject(projectKey string) (*Project, error) {
+	var project Project
+	urlString := buildUrl("/projects/%s", projectKey)
+	respBytes, err := client.execute("GET", urlString, "")
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(respBytes, &project)
+	if err != nil {
+		return nil, err
+	}
+	return &project, nil
+}
+
+func (client *Client) GetProjects(opts *GetProjectsOpts) ([]*Project, error) {
+	result := []*Project{}
+	urlString, err := getProjectsUrl(opts)
+	if err != nil {
+		return result, err
+	}
+	values, err := client.getPaged(urlString, opts.Ammount, "")
+	if err != nil {
+		return result, err
+	}
+	// Unmarshal the values
+	for _, value := range values {
+		var v = &Project{}
+		err = json.Unmarshal(value, v)
+		if err != nil {
+			return result, err
+		}
+		result = append(result, v)
+	}
+	return result, nil
+}
+
+func (client *Client) GetRepository(projectKey, repositorySlug string) (*Repository, error) {
+	var repository Repository
+	urlString := buildUrl("/projects/%s/repos/%s", projectKey, repositorySlug)
+	respBytes, err := client.execute("GET", urlString, "")
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(respBytes, &repository)
+	if err != nil {
+		return nil, err
+	}
+	return &repository, nil
+}
+
+func (client *Client) GetRepositories(opts *GetRepositoriesOpts) ([]*Project, error) {
+	result := []*Project{}
+	urlString, err := getRepositoriesUrl(opts)
+	if err != nil {
+		return result, err
+	}
+	values, err := client.getPaged(urlString, opts.Ammount, "")
+	if err != nil {
+		return result, err
+	}
+	// Unmarshal the values
+	for _, value := range values {
+		var v = &Project{}
+		err = json.Unmarshal(value, v)
+		if err != nil {
+			return result, err
+		}
+		result = append(result, v)
+	}
+	return result, nil
+}
+
+func (client *Client) GetPullRequests(opts *GetPullRequestsOpts) ([]*PullRequest, error) {
+	result := []*PullRequest{}
+	urlString, err := getPullRequestUrl(opts)
+	if err != nil {
+		return result, err
+	}
+	values, err := client.getPaged(urlString, opts.Ammount, "")
+	if err != nil {
+		return result, err
+	}
+	// Unmarshal the values
+	for _, value := range values {
+		var v = &PullRequest{}
+		err = json.Unmarshal(value, v)
+		if err != nil {
+			return result, err
+		}
+		result = append(result, v)
+	}
+	return result, nil
+}

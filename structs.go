@@ -1,5 +1,15 @@
 package bitbucket_v1
 
+type PullRequest struct {
+	Id          uint64 `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	State       string `json:"state"`
+	FromRef     Ref    `json:"fromRef"`
+	ToRef       Ref    `json:"toRef"`
+	Repository  *Repository
+}
+
 type Ref struct {
 	Id           string `json:"id"`
 	DisplayId    string `json:"displayId"`
